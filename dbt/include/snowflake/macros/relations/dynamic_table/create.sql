@@ -41,11 +41,24 @@
 --      A valid DDL statement which will result in a new dynamic standard table.
 -#}
 
-    create dynamic table {{ relation }}
+    {%- set materialization_prefix = relation.get_ddl_prefix_for_create(config.model.config, False) -%}
+
+    {%- set cluster_by_keys = config.get('cluster_by', default=none) -%}
+    {%- if cluster_by_keys is not none and cluster_by_keys is string -%}
+      {%- set cluster_by_keys = [cluster_by_keys] -%}
+    {%- endif -%}
+    {%- if cluster_by_keys is not none -%}
+      {%- set cluster_by_string = cluster_by_keys|join(", ")-%}
+    {% else %}
+      {%- set cluster_by_string = none -%}
+    {%- endif -%}
+
+    create {{ materialization_prefix }} dynamic table {{ relation }}
         target_lag = '{{ dynamic_table.target_lag }}'
         warehouse = {{ dynamic_table.snowflake_warehouse }}
         {{ optional('refresh_mode', dynamic_table.refresh_mode) }}
         {{ optional('initialize', dynamic_table.initialize) }}
+        {{ optional('cluster by', cluster_by_string) }}
         as (
             {{ sql }}
         )
